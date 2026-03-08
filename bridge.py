@@ -33,6 +33,7 @@ from virtual_device import (
     POV_CENTER, POV_N, POV_NE, POV_E, POV_SE,
     POV_S, POV_SW, POV_W, POV_NW,
 )
+from gui import ControllerGUI
 
 
 # ─── Lever Position Ordinals ────────────────────────────────────────────────
@@ -181,15 +182,18 @@ class ControllerBridge:
     """
 
     def __init__(self, brake_mode: str = "analog", power_mode: str = "analog",
-                 step: int = 2000, pulse_ms: int = 50, vjoy_id: int = 1):
+                 step: int = 2000, pulse_ms: int = 50, vjoy_id: int = 1,
+                 gui: bool = False):
         self.brake_mode_name = brake_mode
         self.power_mode_name = power_mode
         self.step = step
         self.pulse_ms = pulse_ms
         self.vjoy_id = vjoy_id
+        self.use_gui = gui
 
         self.controller = ShinkansenController()
         self.vjoy = VirtualJoystick(device_id=vjoy_id)
+        self._gui: ControllerGUI | None = None
 
         self.brake_handler = None
         self.power_handler = None
@@ -212,6 +216,11 @@ class ControllerBridge:
         self.controller.open()
         self.vjoy.open()
 
+        if self.use_gui:
+            self._gui = ControllerGUI()
+            self._gui.start()
+            print("  GUI window opened.")
+
         self.brake_handler = self._create_lever_handler(
             self.brake_mode_name, BRAKE_ORDER,
             self.vjoy.set_brake_axis,
@@ -226,6 +235,11 @@ class ControllerBridge:
     def close(self) -> None:
         """Disconnect everything."""
         self._running = False
+        if self._gui is not None:
+            try:
+                self._gui.close()
+            except Exception:
+                pass
         try:
             self.vjoy.close()
         except Exception:
@@ -301,6 +315,9 @@ class ControllerBridge:
                         f"Btns: {_btn_str(state)}   "
                     )
                     sys.stdout.flush()
+
+                    if self._gui is not None and self._gui.is_alive():
+                        self._gui.update_state(state)
 
         except KeyboardInterrupt:
             pass
@@ -380,6 +397,10 @@ Examples:
         "--vjoy-id", type=int, default=1,
         help="vJoy device ID to use (default: 1)",
     )
+    parser.add_argument(
+        "--gui", action="store_true",
+        help="Open a GUI window showing live controller state",
+    )
 
     args = parser.parse_args()
 
@@ -394,6 +415,7 @@ Examples:
             step=args.step,
             pulse_ms=args.pulse_ms,
             vjoy_id=args.vjoy_id,
+            gui=args.gui,
         ) as bridge:
             bridge.run()
     except RuntimeError as e:

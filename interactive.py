@@ -16,6 +16,7 @@ from controller import (
     ShinkansenController, ControllerInput, ControllerOutput, parse_input,
     BrakeNotch, PowerNotch, DPad, Button,
 )
+from gui import ControllerGUI
 
 
 def clear_screen():
@@ -64,6 +65,8 @@ def monitor_inputs(ctrl: ShinkansenController):
                 sys.stdout.write(line + "   ")
                 sys.stdout.flush()
                 prev_line = line
+
+            _gui_update(state)
 
     except KeyboardInterrupt:
         print("\n")
@@ -137,6 +140,10 @@ def raw_byte_dump(ctrl: ShinkansenController):
                 print(f"  #{count:4d}  Hex: {hex_str}")
                 print(f"         Bin: {bin_str}")
                 prev_data = raw
+                try:
+                    _gui_update(parse_input(raw))
+                except Exception:
+                    pass
 
     except KeyboardInterrupt:
         print(f"\n  {count} unique states captured.")
@@ -339,7 +346,20 @@ def run_display_test(ctrl: ShinkansenController):
 
 # ─── Main Menu ───────────────────────────────────────────────────────────────
 
+_gui: ControllerGUI | None = None
+
+
+def _gui_update(state: ControllerInput):
+    """Feed state to the GUI if it is running."""
+    if _gui is not None and _gui.is_alive():
+        _gui.update_state(state)
+
+
 def main():
+    global _gui
+
+    use_gui = "--gui" in sys.argv
+
     clear_screen()
     print_header()
     print()
@@ -356,6 +376,11 @@ def main():
         print("    3. Run discover.py to scan for the device")
         print("    4. Check that libusb-1.0.dll is accessible")
         return
+
+    if use_gui:
+        _gui = ControllerGUI()
+        _gui.start()
+        print("  GUI window opened.")
 
     print()
 
@@ -392,6 +417,8 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        if _gui is not None:
+            _gui.close()
         ctrl.close()
         print()
         print("  Controller disconnected. Goodbye.")
@@ -413,6 +440,7 @@ def full_duplex_test(ctrl: ShinkansenController):
         print(f"\r  IN:  {state}  [{raw_hex}]")
         sys.stdout.write("  > ")
         sys.stdout.flush()
+        _gui_update(state)
 
     ctrl.start_polling(callback=on_input_change)
 

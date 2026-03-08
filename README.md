@@ -170,7 +170,8 @@ python discover.py --read   # Scan + read a few input samples
 
 ### 2. Interactive Test Tool
 ```bash
-python interactive.py
+python interactive.py          # Console only
+python interactive.py --gui    # Console + GUI window
 ```
 
 Menu options:
@@ -182,6 +183,7 @@ Menu options:
 ### 3. Virtual DirectInput Bridge
 ```bash
 python bridge.py                                   # Both levers as analog axes
+python bridge.py --gui                             # Bridge + GUI window
 python bridge.py --brake analog --power sequential  # Mix modes per lever
 python bridge.py --brake incremental --step 3000    # Incremental with custom step
 python bridge.py --vjoy-id 2                        # Use vJoy device 2
@@ -214,7 +216,17 @@ python bridge.py --vjoy-id 2                        # Use vJoy device 2
 | Axis X      | Brake lever    | Analog/Incremental modes   |
 | Axis Y      | Power lever    | Analog/Incremental modes   |
 
-### 4. Programmatic Usage
+### 4. GUI Window (Standalone)
+```bash
+python gui.py                  # Opens GUI reading directly from controller
+```
+
+The GUI shows real-time controller state: brake/power lever notch bars, D-pad,
+face buttons (A/B/C/D), Select, Start, horn pedal, and raw input bytes.
+Add `--gui` to either `interactive.py` or `bridge.py` to show the GUI alongside
+the console.
+
+### 5. Programmatic Usage
 ```python
 from controller import ShinkansenController, ControllerOutput
 
@@ -244,6 +256,7 @@ with ShinkansenController() as ctrl:
 | `interactive.py`   | Interactive console test tool                               |
 | `bridge.py`        | Virtual DirectInput bridge (controller → vJoy)              |
 | `virtual_device.py`| vJoy wrapper: axis, button, POV hat abstraction             |
+| `gui.py`           | Tkinter GUI window showing live controller state            |
 | `requirements.txt` | Python dependencies                                        |
 
 ## References
