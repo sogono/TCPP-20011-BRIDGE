@@ -102,7 +102,6 @@ class BrakeNotch(IntEnum):
     B6         = 0xC3
     B7         = 0xDF
     EMERGENCY  = 0xFB
-    TRANSITION = 0xFF
 
 
 class PowerNotch(IntEnum):
@@ -121,7 +120,6 @@ class PowerNotch(IntEnum):
     P11        = 0xD7
     P12        = 0xE9
     P13        = 0xFB
-    TRANSITION = 0xFF
 
 
 class DPad(IntEnum):
@@ -258,8 +256,11 @@ class ControllerOutput:
 
 # ─── Byte Parsing Helpers ────────────────────────────────────────────────────
 
-def _parse_brake(raw: int) -> BrakeNotch:
-    """Parse brake byte to the nearest known notch position."""
+def _parse_brake(raw: int) -> Optional[BrakeNotch]:
+    """Parse brake byte to the nearest known notch position.
+    Returns None for transition values (0xFF) which should be ignored."""
+    if raw == 0xFF:
+        return None
     try:
         return BrakeNotch(raw)
     except ValueError:
@@ -268,8 +269,11 @@ def _parse_brake(raw: int) -> BrakeNotch:
         return closest
 
 
-def _parse_power(raw: int) -> PowerNotch:
-    """Parse power byte to the nearest known notch position."""
+def _parse_power(raw: int) -> Optional[PowerNotch]:
+    """Parse power byte to the nearest known notch position.
+    Returns None for transition values (0xFF) which should be ignored."""
+    if raw == 0xFF:
+        return None
     try:
         return PowerNotch(raw)
     except ValueError:
@@ -297,13 +301,24 @@ def _parse_buttons(raw: int) -> dict[str, bool]:
     }
 
 
-def parse_input(data: bytes) -> ControllerInput:
-    """Parse a 6-byte input report into a ControllerInput object."""
+def parse_input(data: bytes, previous: Optional[ControllerInput] = None) -> ControllerInput:
+    """Parse a 6-byte input report into a ControllerInput object.
+
+    Transition states (0xFF) on the brake/power bytes are ignored;
+    the lever keeps its previous position until a valid notch is read.
+    If no previous state is supplied, defaults are RELEASED / N.
+    """
     if len(data) < 6:
         raise ValueError(f"Expected at least 6 bytes, got {len(data)}")
 
     brake = _parse_brake(data[0])
     power = _parse_power(data[1])
+
+    if brake is None:
+        brake = previous.brake if previous is not None else BrakeNotch.RELEASED
+    if power is None:
+        power = previous.power if previous is not None else PowerNotch.N
+
     pedal_pressed = (data[2] == 0x00)
     dpad = _parse_dpad(data[3])
     buttons = _parse_buttons(data[4])
@@ -423,6 +438,8 @@ class ShinkansenController:
         """
         Read a single input report from the controller.
         Returns None if read times out.
+        Transition states on the levers are filtered out; the previous
+        position is retained until a valid notch is read.
         """
         if self.device is None:
             raise RuntimeError("Controller not opened. Call open() first.")
@@ -430,7 +447,9 @@ class ShinkansenController:
         try:
             data = self.device.read(ENDPOINT_IN, PACKET_SIZE, timeout=timeout_ms)
             if data is not None and len(data) >= 6:
-                return parse_input(bytes(data))
+                state = parse_input(bytes(data), self._last_input)
+                self._last_input = state
+                return state
         except usb.core.USBTimeoutError:
             return None
         except usb.core.USBError as e:

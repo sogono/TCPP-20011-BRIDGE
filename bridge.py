@@ -266,11 +266,9 @@ class ControllerBridge:
 
     def _process_input(self, state: ControllerInput) -> None:
         """Process one input frame and update the virtual device."""
-        # Levers (skip TRANSITION states)
-        if state.brake != BrakeNotch.TRANSITION:
-            self.brake_handler.update(state.brake)
-        if state.power != PowerNotch.TRANSITION:
-            self.power_handler.update(state.power)
+        # Levers
+        self.brake_handler.update(state.brake)
+        self.power_handler.update(state.power)
 
         # Buttons
         self._map_buttons(state)
