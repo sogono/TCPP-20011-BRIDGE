@@ -2,151 +2,6 @@
 
 A Python utility to interface with the **Taito TCPP-20011 Shinkansen** train simulator controller on Windows via USB. This controller was originally designed for PlayStation 2 and connects directly via USB.
 
-## Controller Identification
-
-| Property         | Value                    |
-|------------------|--------------------------|
-| **Manufacturer** | TAITO                    |
-| **Product**      | TAITO_DENSYA_CON_T02     |
-| **Serial**       | TCPP20011                |
-| **Vendor ID**    | `0x0AE4`                |
-| **Product ID**   | `0x0005`                |
-| **USB Version**  | 1.10                     |
-| **Device Class** | `0xFF` (Vendor-Specific) |
-| **Interface**    | HID (class `0x03`), no standard HID descriptors |
-| **Endpoint**     | `0x81` Interrupt IN, 8 bytes, 20ms interval |
-
-## Physical Layout
-
-### Inputs
-- **Brake handle** — 7 notches (B1–B7) + Emergency + Released
-- **Power handle** — 13 notches (P1–P13) + Neutral
-- **Horn pedal** — 3.5mm jack, binary (pressed/released)
-- **D-Pad** — 8 directions + center
-- **Buttons** — A, B, C, D, Select, Start
-- **Rumble motors** — one in each handle (output-driven)
-
-### Outputs (Displays)
-- **Numerical speedometer** — 3-digit display, 0–999 km/h
-- **Speed gauge bar** — up to 22 LEDs (15 km/h increments)
-- **Limit approach bar** — up to 10 LEDs above speedometer (10 km/h below speed limit)
-- **ATC speed limit** — 3-digit display, 0–999 km/h
-- **Door lamp** — single indicator light
-- **Rumble motors** — left and right, on/off
-
----
-
-## Input Protocol
-
-The controller sends **6-byte reports** via interrupt IN endpoint `0x81`:
-
-| Byte 1 | Byte 2 | Byte 3 | Byte 4 | Byte 5  | Byte 6   |
-|:------:|:------:|:------:|:------:|:-------:|:--------:|
-| Brake  | Power  | Pedal  | D-Pad  | Buttons | *Unused* |
-
-### Brake Handle (Byte 1)
-
-| Position   | Value  |
-|------------|--------|
-| Released   | `0x1C` |
-| B1         | `0x38` |
-| B2         | `0x54` |
-| B3         | `0x70` |
-| B4         | `0x8B` |
-| B5         | `0xA7` |
-| B6         | `0xC3` |
-| B7         | `0xDF` |
-| Emergency  | `0xFB` |
-
-> **Note:** The controller sends `0xFF` during lever transitions between notches.
-> The driver ignores these and retains the last valid position.
-
-### Power Handle (Byte 2)
-
-| Position   | Value  |
-|------------|--------|
-| N (Neutral)| `0x12` |
-| P1         | `0x24` |
-| P2         | `0x36` |
-| P3         | `0x48` |
-| P4         | `0x5A` |
-| P5         | `0x6C` |
-| P6         | `0x7E` |
-| P7         | `0x90` |
-| P8         | `0xA2` |
-| P9         | `0xB4` |
-| P10        | `0xC6` |
-| P11        | `0xD7` |
-| P12        | `0xE9` |
-| P13        | `0xFB` |
-
-> **Note:** The controller sends `0xFF` during lever transitions between notches.
-> The driver ignores these and retains the last valid position.
-
-### Horn Pedal (Byte 3)
-
-| State    | Value  |
-|----------|--------|
-| Released | `0xFF` |
-| Pressed  | `0x00` |
-
-### D-Pad (Byte 4)
-
-| Direction    | Value  |
-|--------------|--------|
-| N (Up)       | `0x00` |
-| NE           | `0x01` |
-| E (Right)    | `0x02` |
-| SE           | `0x03` |
-| S (Down)     | `0x04` |
-| SW           | `0x05` |
-| W (Left)     | `0x06` |
-| NW           | `0x07` |
-| Center/None  | `0x08` |
-
-### Buttons (Byte 5) — Bitmask
-
-| Bit | Button |
-|-----|--------|
-| 0   | D      |
-| 1   | C      |
-| 2   | B      |
-| 3   | A      |
-| 4   | SELECT |
-| 5   | START  |
-
-`0` = released, `1` = pressed.
-
----
-
-## Output Protocol
-
-The controller receives display updates via **USB control transfer**:
-
-### Setup Packet
-
-| bmRequestType | bRequest | wValue   | wIndex   | wLength  |
-|:-------------:|:--------:|:--------:|:--------:|:--------:|
-| `0x40`        | `0x09`   | `0x0301` | `0x0000` | `0x0008` |
-
-### Data Payload (8 bytes)
-
-| Byte 1      | Byte 2       | Byte 3                     | Byte 4      | Bytes 5–6   | Bytes 7–8 |
-|:-----------:|:------------:|:--------------------------:|:-----------:|:-----------:|:---------:|
-| Left Rumble | Right Rumble | Door Lamp + Limit Approach | Speed Gauge | Speedometer | ATC Limit |
-
-### Byte Details
-
-- **Left/Right Rumble** (bytes 1–2): `0x00` = Off, `0x01` = On
-- **Door Lamp + Limit Approach** (byte 3):
-  - High nibble: `0x0X` = Off, `0x8X` = On
-  - Low nibble: `0x0`–`0xA` = number of lit LEDs (0–10)
-- **Speed Gauge** (byte 4): `0x00`–`0x16` (0–22 LEDs, 15 km/h increments)
-- **Speedometer** (bytes 5–6): BCD 8421, Little Endian. E.g. 120 km/h = `0x0120` → bytes `[0x20, 0x01]`
-- **ATC Limit** (bytes 7–8): BCD 8421, Little Endian. Same encoding as speedometer.
-
----
-
 ## Prerequisites
 
 1. **Controller connected via USB**
@@ -155,46 +10,6 @@ The controller receives display updates via **USB control transfer**:
 4. **libusb** — the `libusb-1.0.dll` must be accessible (install via pip or place in PATH)
 5. **vJoy driver** — required for the virtual DirectInput bridge (`bridge.py`)
 6. **ViGEmBus driver** — required for the virtual XInput bridge (`xinput_bridge.py`), auto-installed with `pip install vgamepad`
-
-## vJoy Setup
-
-The virtual DirectInput bridge requires [vJoy](https://github.com/njz3/vJoy/releases) to create a virtual joystick that games can bind to.
-
-### 1. Install vJoy
-
-1. Download the latest installer from [github.com/njz3/vJoy/releases](https://github.com/njz3/vJoy/releases).
-2. Run the installer. When prompted, also install **Configure vJoy** and **vJoy Monitor**.
-3. Reboot if prompted.
-
-### 2. Configure a Virtual Device
-
-Open **Configure vJoy** (search the Start menu for "Configure vJoy") and set up **Device 1**:
-
-| Setting                | Required Value                  |
-|------------------------|----------------------------------|
-| **Axes**               | Enable **X** and **Y**          |
-| **Number of Buttons**  | **11** (or more)                |
-| **POV Hat Switch**     | **1 Continuous** POV            |
-
-Click **Apply** to save. You should see "Device 1" appear in **vJoy Monitor** with a green status.
-
-### 3. Verify
-
-Run the bridge to confirm vJoy is working:
-
-```bash
-python bridge.py
-```
-
-If you see `vJoy device 1 acquired and reset.`, the setup is correct.
-
-### Troubleshooting
-
-- **"vJoy does not appear to be installed"** — Reinstall vJoy and reboot.
-- **"Failed to open vJoy device 1"** — Open Configure vJoy and ensure Device 1 is enabled with the settings above.
-- **"vJoyNotEnabledException"** — The vJoy driver is installed but no devices are configured. Open Configure vJoy and click Apply.
-- **"old version" warning** — The bridge still works, but consider updating vJoy to the latest release.
-- **Using a different device ID** — Pass `--vjoy-id 2` (etc.) to `bridge.py` and configure that device in Configure vJoy.
 
 ## Installation
 
@@ -334,6 +149,46 @@ with ShinkansenController() as ctrl:
     ctrl.write_output(output)
 ```
 
+## vJoy Setup
+
+The virtual DirectInput bridge requires [vJoy](https://github.com/njz3/vJoy/releases) to create a virtual joystick that games can bind to.
+
+### 1. Install vJoy
+
+1. Download the latest installer from [github.com/njz3/vJoy/releases](https://github.com/njz3/vJoy/releases).
+2. Run the installer. When prompted, also install **Configure vJoy** and **vJoy Monitor**.
+3. Reboot if prompted.
+
+### 2. Configure a Virtual Device
+
+Open **Configure vJoy** (search the Start menu for "Configure vJoy") and set up **Device 1**:
+
+| Setting                | Required Value                  |
+|------------------------|----------------------------------|
+| **Axes**               | Enable **X** and **Y**          |
+| **Number of Buttons**  | **11** (or more)                |
+| **POV Hat Switch**     | **1 Continuous** POV            |
+
+Click **Apply** to save. You should see "Device 1" appear in **vJoy Monitor** with a green status.
+
+### 3. Verify
+
+Run the bridge to confirm vJoy is working:
+
+```bash
+python bridge.py
+```
+
+If you see `vJoy device 1 acquired and reset.`, the setup is correct.
+
+### Troubleshooting
+
+- **"vJoy does not appear to be installed"** — Reinstall vJoy and reboot.
+- **"Failed to open vJoy device 1"** — Open Configure vJoy and ensure Device 1 is enabled with the settings above.
+- **"vJoyNotEnabledException"** — The vJoy driver is installed but no devices are configured. Open Configure vJoy and click Apply.
+- **"old version" warning** — The bridge still works, but consider updating vJoy to the latest release.
+- **Using a different device ID** — Pass `--vjoy-id 2` (etc.) to `bridge.py` and configure that device in Configure vJoy.
+
 ## Files
 
 | File               | Purpose                                                    |
@@ -347,6 +202,149 @@ with ShinkansenController() as ctrl:
 | `xinput_device.py` | ViGEmBus wrapper: Xbox 360 virtual controller               |
 | `gui.py`           | Tkinter GUI window showing live controller state            |
 | `requirements.txt` | Python dependencies                                        |
+
+---
+
+## Technical Details
+
+### Controller Identification
+
+| Property         | Value                    |
+|------------------|--------------------------|
+| **Manufacturer** | TAITO                    |
+| **Product**      | TAITO_DENSYA_CON_T02     |
+| **Serial**       | TCPP20011                |
+| **Vendor ID**    | `0x0AE4`                |
+| **Product ID**   | `0x0005`                |
+| **USB Version**  | 1.10                     |
+| **Device Class** | `0xFF` (Vendor-Specific) |
+| **Interface**    | HID (class `0x03`), no standard HID descriptors |
+| **Endpoint**     | `0x81` Interrupt IN, 8 bytes, 20ms interval |
+
+### Physical Layout
+
+#### Inputs
+- **Brake handle** — 7 notches (B1–B7) + Emergency + Released
+- **Power handle** — 13 notches (P1–P13) + Neutral
+- **Horn pedal** — 3.5mm jack, binary (pressed/released)
+- **D-Pad** — 8 directions + center
+- **Buttons** — A, B, C, D, Select, Start
+- **Rumble motors** — one in each handle (output-driven)
+
+#### Outputs (Displays)
+- **Numerical speedometer** — 3-digit display, 0–999 km/h
+- **Speed gauge bar** — up to 22 LEDs (15 km/h increments)
+- **Limit approach bar** — up to 10 LEDs above speedometer (10 km/h below speed limit)
+- **ATC speed limit** — 3-digit display, 0–999 km/h
+- **Door lamp** — single indicator light
+- **Rumble motors** — left and right, on/off
+
+### Input Protocol
+
+The controller sends **6-byte reports** via interrupt IN endpoint `0x81`:
+
+| Byte 1 | Byte 2 | Byte 3 | Byte 4 | Byte 5  | Byte 6   |
+|:------:|:------:|:------:|:------:|:-------:|:--------:|
+| Brake  | Power  | Pedal  | D-Pad  | Buttons | *Unused* |
+
+#### Brake Handle (Byte 1)
+
+| Position   | Value  |
+|------------|--------|
+| Released   | `0x1C` |
+| B1         | `0x38` |
+| B2         | `0x54` |
+| B3         | `0x70` |
+| B4         | `0x8B` |
+| B5         | `0xA7` |
+| B6         | `0xC3` |
+| B7         | `0xDF` |
+| Emergency  | `0xFB` |
+
+> **Note:** The controller sends `0xFF` during lever transitions between notches.
+> The driver ignores these and retains the last valid position.
+
+#### Power Handle (Byte 2)
+
+| Position   | Value  |
+|------------|--------|
+| N (Neutral)| `0x12` |
+| P1         | `0x24` |
+| P2         | `0x36` |
+| P3         | `0x48` |
+| P4         | `0x5A` |
+| P5         | `0x6C` |
+| P6         | `0x7E` |
+| P7         | `0x90` |
+| P8         | `0xA2` |
+| P9         | `0xB4` |
+| P10        | `0xC6` |
+| P11        | `0xD7` |
+| P12        | `0xE9` |
+| P13        | `0xFB` |
+
+> **Note:** The controller sends `0xFF` during lever transitions between notches.
+> The driver ignores these and retains the last valid position.
+
+#### Horn Pedal (Byte 3)
+
+| State    | Value  |
+|----------|--------|
+| Released | `0xFF` |
+| Pressed  | `0x00` |
+
+#### D-Pad (Byte 4)
+
+| Direction    | Value  |
+|--------------|--------|
+| N (Up)       | `0x00` |
+| NE           | `0x01` |
+| E (Right)    | `0x02` |
+| SE           | `0x03` |
+| S (Down)     | `0x04` |
+| SW           | `0x05` |
+| W (Left)     | `0x06` |
+| NW           | `0x07` |
+| Center/None  | `0x08` |
+
+#### Buttons (Byte 5) — Bitmask
+
+| Bit | Button |
+|-----|--------|
+| 0   | D      |
+| 1   | C      |
+| 2   | B      |
+| 3   | A      |
+| 4   | SELECT |
+| 5   | START  |
+
+`0` = released, `1` = pressed.
+
+### Output Protocol
+
+The controller receives display updates via **USB control transfer**:
+
+#### Setup Packet
+
+| bmRequestType | bRequest | wValue   | wIndex   | wLength  |
+|:-------------:|:--------:|:--------:|:--------:|:--------:|
+| `0x40`        | `0x09`   | `0x0301` | `0x0000` | `0x0008` |
+
+#### Data Payload (8 bytes)
+
+| Byte 1      | Byte 2       | Byte 3                     | Byte 4      | Bytes 5–6   | Bytes 7–8 |
+|:-----------:|:------------:|:--------------------------:|:-----------:|:-----------:|:---------:|
+| Left Rumble | Right Rumble | Door Lamp + Limit Approach | Speed Gauge | Speedometer | ATC Limit |
+
+#### Byte Details
+
+- **Left/Right Rumble** (bytes 1–2): `0x00` = Off, `0x01` = On
+- **Door Lamp + Limit Approach** (byte 3):
+  - High nibble: `0x0X` = Off, `0x8X` = On
+  - Low nibble: `0x0`–`0xA` = number of lit LEDs (0–10)
+- **Speed Gauge** (byte 4): `0x00`–`0x16` (0–22 LEDs, 15 km/h increments)
+- **Speedometer** (bytes 5–6): BCD 8421, Little Endian. E.g. 120 km/h = `0x0120` → bytes `[0x20, 0x01]`
+- **ATC Limit** (bytes 7–8): BCD 8421, Little Endian. Same encoding as speedometer.
 
 ## References
 
