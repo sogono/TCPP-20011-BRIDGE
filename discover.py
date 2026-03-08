@@ -9,7 +9,6 @@ identify the controller if VID/PID differ from expected.
 import sys
 import usb.core
 import usb.util
-import usb.backend.libusb1
 
 from controller import (
     VENDOR_ID, PRODUCT_ID, PRODUCT_NAME, SERIAL_NUMBER,
