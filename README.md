@@ -57,7 +57,9 @@ The controller sends **6-byte reports** via interrupt IN endpoint `0x81`:
 | B6         | `0xC3` |
 | B7         | `0xDF` |
 | Emergency  | `0xFB` |
-| Transition | `0xFF` |
+
+> **Note:** The controller sends `0xFF` during lever transitions between notches.
+> The driver ignores these and retains the last valid position.
 
 ### Power Handle (Byte 2)
 
@@ -77,7 +79,9 @@ The controller sends **6-byte reports** via interrupt IN endpoint `0x81`:
 | P11        | `0xD7` |
 | P12        | `0xE9` |
 | P13        | `0xFB` |
-| Transition | `0xFF` |
+
+> **Note:** The controller sends `0xFF` during lever transitions between notches.
+> The driver ignores these and retains the last valid position.
 
 ### Horn Pedal (Byte 3)
 
@@ -149,9 +153,47 @@ The controller receives display updates via **USB control transfer**:
 2. **libwdi/WinUSB driver installed** (e.g. via [Zadig](https://zadig.akeo.ie/))
 3. **Python 3.10+**
 4. **libusb** — the `libusb-1.0.dll` must be accessible (install via pip or place in PATH)
-5. **vJoy driver** — required for virtual DirectInput device ([download from GitHub](https://github.com/njz3/vJoy/releases))
-   - During install, also install **vJoy Monitor** and **Configure vJoy**
-   - Configure vJoy device 1 with: **2 axes (X, Y)**, **11 buttons**, **1 continuous POV**
+5. **vJoy driver** — required for the virtual DirectInput bridge (`bridge.py`)
+
+## vJoy Setup
+
+The virtual DirectInput bridge requires [vJoy](https://github.com/njz3/vJoy/releases) to create a virtual joystick that games can bind to.
+
+### 1. Install vJoy
+
+1. Download the latest installer from [github.com/njz3/vJoy/releases](https://github.com/njz3/vJoy/releases).
+2. Run the installer. When prompted, also install **Configure vJoy** and **vJoy Monitor**.
+3. Reboot if prompted.
+
+### 2. Configure a Virtual Device
+
+Open **Configure vJoy** (search the Start menu for "Configure vJoy") and set up **Device 1**:
+
+| Setting                | Required Value                  |
+|------------------------|----------------------------------|
+| **Axes**               | Enable **X** and **Y**          |
+| **Number of Buttons**  | **11** (or more)                |
+| **POV Hat Switch**     | **1 Continuous** POV            |
+
+Click **Apply** to save. You should see "Device 1" appear in **vJoy Monitor** with a green status.
+
+### 3. Verify
+
+Run the bridge to confirm vJoy is working:
+
+```bash
+python bridge.py
+```
+
+If you see `vJoy device 1 acquired and reset.`, the setup is correct.
+
+### Troubleshooting
+
+- **"vJoy does not appear to be installed"** — Reinstall vJoy and reboot.
+- **"Failed to open vJoy device 1"** — Open Configure vJoy and ensure Device 1 is enabled with the settings above.
+- **"vJoyNotEnabledException"** — The vJoy driver is installed but no devices are configured. Open Configure vJoy and click Apply.
+- **"old version" warning** — The bridge still works, but consider updating vJoy to the latest release.
+- **Using a different device ID** — Pass `--vjoy-id 2` (etc.) to `bridge.py` and configure that device in Configure vJoy.
 
 ## Installation
 
