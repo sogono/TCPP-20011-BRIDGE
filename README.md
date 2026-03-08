@@ -154,6 +154,7 @@ The controller receives display updates via **USB control transfer**:
 3. **Python 3.10+**
 4. **libusb** — the `libusb-1.0.dll` must be accessible (install via pip or place in PATH)
 5. **vJoy driver** — required for the virtual DirectInput bridge (`bridge.py`)
+6. **ViGEmBus driver** — required for the virtual XInput bridge (`xinput_bridge.py`), auto-installed with `pip install vgamepad`
 
 ## vJoy Setup
 
@@ -258,17 +259,61 @@ python bridge.py --vjoy-id 2                        # Use vJoy device 2
 | Axis X      | Brake lever    | Analog/Incremental modes   |
 | Axis Y      | Power lever    | Analog/Incremental modes   |
 
-### 4. GUI Window (Standalone)
+### 4. Virtual XInput Bridge (Xbox 360)
+```bash
+python xinput_bridge.py                                  # Default TSW5-friendly mapping
+python xinput_bridge.py --gui                            # Bridge + GUI window
+python xinput_bridge.py --pulse-ms 100                   # Longer button pulses
+python xinput_bridge.py --brake-up LB --brake-down RB    # Remap lever buttons
+python xinput_bridge.py --power-up A --power-down B      # Remap power to face buttons
+```
+
+Use this bridge for games that only support XInput (Xbox 360) controllers.
+Each lever notch change fires a momentary button/trigger press on the virtual Xbox 360 pad.
+
+#### Default XInput Mapping
+
+| Physical Input     | Xbox 360 Button | Notes                              |
+|--------------------|:---------------:|------------------------------------|
+| Brake notch up     | RT              | Momentary right trigger press      |
+| Brake notch down   | LT              | Momentary left trigger press       |
+| Power notch up     | RB              | Momentary right shoulder press     |
+| Power notch down   | LB              | Momentary left shoulder press      |
+| Button A           | A               |                                    |
+| Button B           | B               |                                    |
+| Button C           | X               |                                    |
+| Button D           | Y               |                                    |
+| Select             | Back            |                                    |
+| Start              | Start           |                                    |
+| Horn Pedal         | LS              | Left stick click                   |
+| D-Pad              | D-Pad           | Direct 1:1 mapping                 |
+
+All button assignments are configurable via CLI flags (`--brake-up`, `--power-down`, `--horn`, etc.).
+Valid button names: `A B X Y LB RB LT RT LS RS START BACK GUIDE`
+
+#### ViGEmBus Setup
+
+The XInput bridge requires the ViGEmBus driver. Installing `vgamepad` via pip will
+automatically prompt you to install it:
+
+```bash
+pip install vgamepad
+```
+
+If the driver prompt doesn't appear, download it manually from
+[github.com/ViGEm/ViGEmBus/releases](https://github.com/ViGEm/ViGEmBus/releases).
+
+### 5. GUI Window (Standalone)
 ```bash
 python gui.py                  # Opens GUI reading directly from controller
 ```
 
 The GUI shows real-time controller state: brake/power lever notch bars, D-pad,
 face buttons (A/B/C/D), Select, Start, horn pedal, and raw input bytes.
-Add `--gui` to either `interactive.py` or `bridge.py` to show the GUI alongside
-the console.
+Add `--gui` to `interactive.py`, `bridge.py`, or `xinput_bridge.py` to show the
+GUI alongside the console.
 
-### 5. Programmatic Usage
+### 6. Programmatic Usage
 ```python
 from controller import ShinkansenController, ControllerOutput
 
@@ -297,7 +342,9 @@ with ShinkansenController() as ctrl:
 | `discover.py`      | USB device scanner and identification                       |
 | `interactive.py`   | Interactive console test tool                               |
 | `bridge.py`        | Virtual DirectInput bridge (controller → vJoy)              |
+| `xinput_bridge.py` | Virtual XInput bridge (controller → Xbox 360 via ViGEmBus) |
 | `virtual_device.py`| vJoy wrapper: axis, button, POV hat abstraction             |
+| `xinput_device.py` | ViGEmBus wrapper: Xbox 360 virtual controller               |
 | `gui.py`           | Tkinter GUI window showing live controller state            |
 | `requirements.txt` | Python dependencies                                        |
 
@@ -308,3 +355,5 @@ with ShinkansenController() as ctrl:
 - [PyUSB Documentation](https://pyusb.github.io/pyusb/)
 - [vJoy Virtual Joystick](https://github.com/njz3/vJoy/)
 - [pyvjoystick (Python vJoy bindings)](https://github.com/fsadannn/pyvjoystick/)
+- [vgamepad (Python ViGEmBus bindings)](https://github.com/yannbouteiller/vgamepad)
+- [ViGEmBus Virtual Gamepad Driver](https://github.com/ViGEm/ViGEmBus)
