@@ -91,7 +91,7 @@ class ControllerGUI:
     def run(self) -> None:
         """Build and run the GUI (blocks until window is closed)."""
         self._root = tk.Tk()
-        self._root.title("Shinkansen Controller")
+        self._root.title("Shinkansen Controller Bridge")
         self._root.geometry(f"{WINDOW_W}x{WINDOW_H}")
         self._root.configure(bg=BG)
         self._root.resizable(False, False)
