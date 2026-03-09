@@ -14,7 +14,6 @@ A Python utility to interface with the **Taito TCPP-20011 Shinkansen** train sim
 ## Installation
 
 ```bash
-cd denusb
 pip install -r requirements.txt
 ```
 
